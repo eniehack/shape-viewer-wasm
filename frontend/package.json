@@ -20,6 +20,7 @@
 		"@sveltejs/kit": "^2.50.1",
 		"@sveltejs/vite-plugin-svelte": "^6.2.4",
 		"@tailwindcss/vite": "^4.1.18",
+		"@types/geojson": "^7946.0.16",
 		"@types/node": "^22",
 		"eslint": "^9.39.2",
 		"eslint-config-prettier": "^10.1.8",
@@ -30,9 +31,11 @@
 		"prettier-plugin-tailwindcss": "^0.7.2",
 		"svelte": "^5.48.2",
 		"svelte-check": "^4.3.5",
+		"svelte-maplibre-gl": "^1.0.3",
 		"tailwindcss": "^4.1.18",
 		"typescript": "^5.9.3",
 		"typescript-eslint": "^8.53.1",
-		"vite": "^7.3.1"
+		"vite": "^7.3.1",
+		"vite-plugin-wasm": "^3.5.0"
 	}
 }
