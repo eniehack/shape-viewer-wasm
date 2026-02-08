@@ -1,10 +1,11 @@
 name = "shape-viewer-wasm"
 compatibility_date = "2025-02-01"
-compatibility_flags = ["nodejs_compat"]
+compatibility_flags = ["nodejs_als"]
+main = "./frontend/.svelte-kit/cloudflare/_worker.js",
 
 # 静的ファイル配信
 [assets]
-directory = "../frontend/cloudflare"
+directory = "../frontend/.svelte-kit/cloudflare"
 binding = "ASSETS"
 
 # 環境変数（公開OKなもの）
