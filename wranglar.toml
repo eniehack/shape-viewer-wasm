@@ -1,0 +1,12 @@
+name = "shape-viewer-wasm"
+compatibility_date = "2025-02-01"
+compatibility_flags = ["nodejs_compat"]
+
+# 静的ファイル配信
+[assets]
+directory = "../frontend/cloudflare"
+binding = "ASSETS"
+
+# 環境変数（公開OKなもの）
+[vars]
+NODE_ENV = "production"
