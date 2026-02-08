@@ -43,61 +43,10 @@ jobs:
       - run: pnpm run build
         working-directory: 'frontend'
 
-      - name: Deploy to Cloudflare Workers In Production Mode
-        if: ${{ github.event_name == 'push' }}
+      - name: Deploy to Cloudflare Workers
         id: deploy
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: "deploy"
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Alias Deployment URL
-        if: ${{ github.event_name == 'pull_request' }}
-        id: alias
-        run: |
-          echo "name=${ALIAS_NAME}" >> $GITHUB_OUTPUT
-          echo "url=https://${ALIAS_NAME}-${WORKER_NAME}.${SUBDOMAIN}.workers.dev" >> $GITHUB_OUTPUT
-        env:
-          ALIAS_NAME: deploy-preview-${{ github.event.pull_request.number }}
-          WORKER_NAME: trial-cloudflare-todo-list
-          SUBDOMAIN: numa-san-1024
-
-      - name: Deploy to Cloudflare Workers In Preview Mode
-        if: ${{ github.event_name == 'pull_request' }}
-        id: deploy-preview
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: server
-          command: "versions upload --preview-alias ${{ steps.alias.outputs.name }}"
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Comment Preview URL
-        if: ${{ github.event_name == 'pull_request' }}
-        uses: thollander/actions-comment-pull-request@v3
-        with:
-          message: |
-            🚀 Deployed to Cloudflare Workers
-            Preview URL: ${{ steps.alias.outputs.url }}
-            <sub>Deployment URL: ${{ steps.deploy-preview.outputs.deployment-url }}</sub>
-          comment-tag: "cloudflare-workers-deployment"
-
-      - name: Create GitHub Deployment
-        if: ${{ github.event_name == 'push' }}
-        id: deployment
-        uses: chrnorm/deployment-action@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          environment: "Cloudflare Workers Production"
-
-      - name: Set Deployment Status
-        if: ${{ github.event_name == 'push' }}
-        uses: chrnorm/deployment-status@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          state: "success"
-          deployment-id: ${{ steps.deployment.outputs.deployment_id }}
-          environment-url: ${{ steps.deploy.outputs.deployment-url }}
