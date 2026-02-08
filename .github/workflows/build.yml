@@ -54,7 +54,6 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: server
           command: "deploy"
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
 
