@@ -41,7 +41,7 @@ jobs:
           node-version: 24
           cache: 'pnpm'
       
-      - run: pnpm install --freeze-lockfile
+      - run: pnpm install --frozen-lockfile
         working-directory: 'frontend'
 
       - run: pnpm run build
