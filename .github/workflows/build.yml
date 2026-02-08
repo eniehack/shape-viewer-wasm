@@ -29,6 +29,8 @@ jobs:
         run: wasm-pack build shp-parser --target web --out-dir ../wasm --release
 
       - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ./shp-parser -> target
 
       - uses: pnpm/action-setup@v4
         with:
