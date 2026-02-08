@@ -1,13 +1,13 @@
 mod utils;
+mod geojson;
 
+use crate::geojson::{Geometry, Feature, FeatureCollection};
 use std::io;
 use std::{convert::TryFrom, io::{Cursor, ErrorKind}};
 
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use serde::Serialize;
 use thiserror::Error;
-use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -69,7 +69,13 @@ struct ShapeFileHeader {
     m_bbox: BBox,
 }
 
-fn parse_fileheader(rdr: &mut Cursor<&[u8]>) -> Result<ShapeFileHeader, Error> {
+fn parse_bbox(rdr: &mut Cursor<&[u8]>) -> Result<BBox, Error> {
+    let min = rdr.read_f64::<LittleEndian>()?;
+    let max = rdr.read_f64::<LittleEndian>()?;
+    return Ok(BBox{min, max});
+}
+
+fn parse_fileheader(mut rdr: &mut Cursor<&[u8]>) -> Result<ShapeFileHeader, Error> {
     let magic_number = rdr.read_i32::<BigEndian>()?;
     for _ in 0..5 {
         rdr.read_i32::<BigEndian>()?;
@@ -80,18 +86,10 @@ fn parse_fileheader(rdr: &mut Cursor<&[u8]>) -> Result<ShapeFileHeader, Error> {
         alert("invalid shape file");
     }
     let shape_type = ShapeType::try_from(rdr.read_i32::<LittleEndian>()?).map_err(|i| Error::InvalidShapeType(i.number))?;
-    let x_bbox_min = rdr.read_f64::<LittleEndian>()?;
-    let x_bbox_max = rdr.read_f64::<LittleEndian>()?;
-    let x_bbox = BBox{min: x_bbox_min, max: x_bbox_max};
-    let y_bbox_min = rdr.read_f64::<LittleEndian>()?;
-    let y_bbox_max = rdr.read_f64::<LittleEndian>()?;
-    let y_bbox = BBox{ min: y_bbox_min, max: y_bbox_max};
-    let z_bbox_min = rdr.read_f64::<LittleEndian>()?;
-    let z_bbox_max = rdr.read_f64::<LittleEndian>()?;
-    let z_bbox = BBox{ min: z_bbox_min, max: z_bbox_max};
-    let m_bbox_min = rdr.read_f64::<LittleEndian>()?;
-    let m_bbox_max = rdr.read_f64::<LittleEndian>()?;
-    let m_bbox = BBox{min: m_bbox_min, max: m_bbox_max};
+    let x_bbox = parse_bbox(&mut rdr)?;
+    let y_bbox = parse_bbox(&mut rdr)?;
+    let z_bbox = parse_bbox(&mut rdr)?;
+    let m_bbox = parse_bbox(&mut rdr)?;
     Ok(
         ShapeFileHeader { magic_number, file_length, version, shape_type, x_bbox, y_bbox, z_bbox, m_bbox }
     )
@@ -114,51 +112,58 @@ fn read_record_header(rdr: &mut Cursor<&[u8]>) -> Result<Option<ContentHeader>, 
     return Ok(Some(ContentHeader { number, length }))
 }
 
+#[derive(Clone)]
 struct Point {
     x: f64,
     y: f64,
 }
 
 fn parse_point(rdr: &mut Cursor<&[u8]>) -> Result<Point, std::io::Error> {
-    let shape_typ = rdr.read_i32::<LittleEndian>()?;
     let x = rdr.read_f64::<LittleEndian>()?;
     let y = rdr.read_f64::<LittleEndian>()?;
     Ok(Point{x, y})
 }
-
-#[derive(Debug, Serialize)]
-#[serde(tag = "type", content = "coordinates")]
-pub enum Geometry {
-    Point([f64; 2]),
-    LineString(Vec<[f64; 2]>),
-    Polygon(Vec<Vec<[f64; 2]>>),
-    MultiPoint(Vec<[f64; 2]>),
-    MultiLineString(Vec<Vec<[f64; 2]>>),
-    MultiPolygon(Vec<Vec<Vec<[f64; 2]>>>),
+struct Polygon {
+    x_bbox: BBox,
+    y_bbox: BBox,
+    parts: Vec<i32>,
+    points: Vec<Point>,
 }
 
-#[derive(Debug, Serialize)]
-pub struct Feature {
-    #[serde(rename = "type")]
-    feature_type: &'static str, // 常に "Feature"
-    pub geometry: Geometry,
-    pub properties: HashMap<String, String>,
+fn parse_polygon(mut rdr: &mut Cursor<&[u8]>) -> Result<Polygon, std::io::Error> {
+    let x_min = rdr.read_f64::<LittleEndian>()?;
+    let y_min = rdr.read_f64::<LittleEndian>()?;
+    let x_max = rdr.read_f64::<LittleEndian>()?;
+    let y_max = rdr.read_f64::<LittleEndian>()?;
+    let num_parts = rdr.read_i32::<LittleEndian>()?;
+    let num_points = rdr.read_i32::<LittleEndian>()?;
+    let mut parts = Vec::new();
+    for _ in 0..num_parts {
+        let part = rdr.read_i32::<LittleEndian>()?;
+        parts.push(part);
+    };
+    let mut points = Vec::new();
+    for _ in 0..num_points {
+        let point = parse_point(&mut rdr)?;
+        points.push(point);
+    };
+    return Ok(Polygon{
+        x_bbox:BBox { min: x_min, max: x_max },
+        y_bbox:BBox { min: y_min, max: y_max },
+        parts,
+        points,
+    })
 }
 
-#[derive(Debug, Serialize)]
-pub struct FeatureCollection {
-    #[serde(rename = "type")]
-    collection_type: &'static str, // "FeatureCollection"
-    pub features: Vec<Feature>,
-}
+const WORD_PER_BYTES: i32 = 2;
 
 #[wasm_bindgen]
-pub fn parse_shp(data: &[u8]) -> Result<JsValue, JsValue> {
+pub fn parse_shp(data: &[u8]) -> Result<FeatureCollection, JsValue> {
     let mut rdr = Cursor::new(data);
 
     let header = parse_fileheader(&mut rdr).map_err(|e| JsValue::from_str(&e.to_string()))?;
 
-    let all_record_length = header.file_length * 2 - 25;
+    let all_record_length = header.file_length * WORD_PER_BYTES - 25;
     let mut i = 0;
     let mut features = Vec::new();
     while i < all_record_length {
@@ -167,18 +172,33 @@ pub fn parse_shp(data: &[u8]) -> Result<JsValue, JsValue> {
             Ok(Some(v)) => v,
             Err(e) => return Err(JsValue::from_str(&Error::ParseError(e).to_string())),
         };
-        i += (record_header.length + 4) * 2;
-        let record_content = match header.shape_type {
-            ShapeType::POINT => parse_point(&mut rdr).map_err(|e| Error::ParseError(e)),
+        i += (record_header.length + 4) * WORD_PER_BYTES;
+        let raw_shape_type = rdr.read_i32::<LittleEndian>().map_err(|e| JsValue::from_str(&e.to_string()))?;
+        let shape_typ = ShapeType::try_from(raw_shape_type).map_err(|e| JsValue::from_str(&e.to_string()))?;
+        if header.shape_type != shape_typ {
+            return Err(JsValue::from_str("not match"))
+        }
+        let geom = match shape_typ {
+            ShapeType::POINT => {
+                let record_content = parse_point(&mut rdr).map_err(|e| JsValue::from_str(&Error::ParseError(e).to_string()))?;
+                Geometry::Point([record_content.x, record_content.y])
+            },
+            ShapeType::POLYGON => {
+                let content = parse_polygon(&mut rdr).map_err(|e| JsValue::from_str(&Error::ParseError(e).to_string()))?;
+                let mut parts = content.parts.clone();
+                parts.push(content.points.len() as i32);
+                let polygons = parts.windows(2).into_iter().map(|w| {
+                    let start = w[0] as usize;
+                    let end = w[1] as usize;
+                    content.points[start..end].iter().map(|p| [p.x, p.y]).collect()
+                }).collect();
+                Geometry::Polygon(polygons)
+            },
             _ => return Err(JsValue::from_str(&Error::UnsupportedShapeType(header.shape_type).to_string())),
         };
-        let geom = Geometry::Point([record_content.as_ref().unwrap().x, record_content.as_ref().unwrap().y]);
-        let feature = Feature{feature_type: "Point", geometry: geom, properties: HashMap::new()};
+        let feature = Feature::new(geom);
         features.push(feature);
     }
-    let collection = FeatureCollection {
-        collection_type: "FeatureCollection",
-        features: features
-    };
-    Ok(serde_wasm_bindgen::to_value(&collection)?)
+    let collection = FeatureCollection::new(features);
+    Ok(collection)
 }
