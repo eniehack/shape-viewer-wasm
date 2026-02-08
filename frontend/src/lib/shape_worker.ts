@@ -1,4 +1,4 @@
-import init, { parse_shp } from '$lib/wasm/shp_parser';
+import init, { parse_shp } from 'shp-parser';
 
 let initialized = false;
 

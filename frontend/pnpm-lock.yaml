@@ -7,6 +7,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      shp-parser:
+        specifier: file:../wasm
+        version: file:../wasm
     devDependencies:
       '@eslint/compat':
         specifier: ^2.0.1
@@ -1324,6 +1328,9 @@ packages:
     resolution: {integrity: sha512-7++dFhtcx3353uBaq8DDR4NuxBetBzC7ZQOhmTQInHEd6bSrXdiEyzCvG07Z44UYdLShWUyXt5M/yhz8ekcb1A==}
     engines: {node: '>=8'}
 
+  shp-parser@file:../wasm:
+    resolution: {directory: ../wasm, type: directory}
+
   sirv@3.0.2:
     resolution: {integrity: sha512-2wcC/oGxHis/BoHkkPwldgiPSYcpZK3JU28WoMVv55yHJgcZ8rlXvuG9iZggz+sU1d4bRgIGASwyWqjxu3FM0g==}
     engines: {node: '>=18'}
@@ -2563,6 +2570,8 @@ snapshots:
       shebang-regex: 3.0.0
 
   shebang-regex@3.0.0: {}
+
+  shp-parser@file:../wasm: {}
 
   sirv@3.0.2:
     dependencies:
