@@ -9,6 +9,7 @@ on:
 permissions:
   pull-requests: write
   deployments: write
+  contents: read
 
 jobs:
   build:
@@ -29,6 +30,8 @@ jobs:
         run: wasm-pack build shp-parser --target web --out-dir ../wasm --release
 
       - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ./shp-parser -> target
 
       - uses: pnpm/action-setup@v4
         with:
@@ -45,10 +48,11 @@ jobs:
       - run: pnpm run build
         working-directory: 'frontend'
 
-      - name: Deploy to Cloudflare Workers
+      - name: Deploy to Cloudflare Pages
         id: deploy
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          command: pages deploy ./frontend/.svelte-kit/cloudflare --project-name=shape-viewer-wasm-eniehack --branch=${{ github.head_ref || github.ref_name }}
