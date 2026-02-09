@@ -48,7 +48,7 @@ jobs:
       - run: pnpm run build
         working-directory: 'frontend'
 
-      - name: Deploy to Cloudflare Workers
+      - name: Deploy to Cloudflare Pages
         id: deploy
         uses: cloudflare/wrangler-action@v3
         with:
