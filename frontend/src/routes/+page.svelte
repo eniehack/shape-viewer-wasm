@@ -14,7 +14,6 @@
 		if (!files || !worker || !dialog) {
 			return;
 		}
-		console.debug("onSubmitFile");
 		loading = true;
 		const buf = await files[0].arrayBuffer();
 		worker.postMessage(new Uint8Array(buf));
@@ -35,10 +34,40 @@
 </script>
 
 <dialog bind:this={dialog} class="rounded-xl p-6 backdrop:bg-black/40">
-	<div class="p-2">
-		<input bind:files class="block w-full text-sm file:mr-4 file:rounded-lg file:border-0 file:px-4 file:py-2" type="file" name="file" accept=".shp" />
-	</div>
-	<button class="rounded-lg bg-blue-600 px-6 py-2 text-white" type="button" onclick={() => onSubmitFile()}>parse</button>
+	<article class="p-2 prose">
+		<h1>shapefile viewer</h1>
+		<section>
+			<h2>使い方</h2>
+			<ol>
+				<li>
+					<section>
+						<p>.shpファイルを選択する。下のボタンからshpファイルを選択します。</p>
+			<input
+				bind:files
+				class="block w-full text-sm file:mr-4 file:rounded-lg file:border file:border-blue-500 file:px-4 file:py-2"
+				type="file"
+				name="file"
+				accept=".shp"
+			/>
+					</section>
+				</li>
+				<li>
+					<p>下のparseを押します</p>
+				</li>
+			</ol>
+		</section>
+	</article>
+	<button
+		class="rounded-lg bg-blue-600 px-6 py-2 disabled:bg-blue-600/60 text-white"
+		type="button"
+		disabled={loading}
+		onclick={() => onSubmitFile()}>
+		{#if loading}
+			loading...
+		{:else}
+			parse
+		{/if}
+	</button>
 </dialog>
 
 <div class="fixed bottom-0 top-[53px]">
